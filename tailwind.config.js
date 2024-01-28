@@ -2,10 +2,8 @@
 module.exports = {
   darkMode: ["class"],
   content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx,html,js}',
+    './index.html'
   ],
   prefix: "",
   theme: {
@@ -17,8 +15,8 @@ module.exports = {
       },
     },
     extend: {
-      screens: {
-        'normalh': { 'raw': '(min-height: 600px)' },
+      screens:{
+        'normal': { 'raw': '(min-height: 600px)' },
         'tall': { 'raw': '(min-height: 800px)' },
         'taller': { 'raw': '(min-height: 1000px)' },
       },

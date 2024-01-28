@@ -30,12 +30,12 @@ const CMDK = ()=> {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           <CommandGroup heading="Suggestions">
-            <CommandItem>Calendar</CommandItem>
-            <CommandItem>Search Emoji</CommandItem>
+            <CommandItem>Under Developing...</CommandItem>
+            {/* <CommandItem>Search Emoji</CommandItem>
             <CommandItem>
                 <span>Calculator</span>
                 <CommandShortcut>⌘C</CommandShortcut>
-                </CommandItem>
+                </CommandItem> */}
           </CommandGroup>
         </CommandList>
       </CommandDialog>

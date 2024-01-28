@@ -5,8 +5,6 @@ import { Command } from '@tauri-apps/api/shell';
  * Creates a 16 bit wav file to be ingested by the whisper model in a temp directory.
  */
 export async function create16bitWav(file: MediaFile): Promise<void> {
-	console.log("file: ",file,' ',file.path);
-	
 	const ffmpeg = Command.sidecar('binaries/ffmpeg', [
 		'-y',
 		'-i',

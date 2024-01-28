@@ -1,41 +1,74 @@
 import { useTranscribeStore } from "@/store/createStore";
 import { TextItem } from "../../components/item";
-import Audio from "../../components/audio/audio";
 import { useEffect, useState } from "react";
-import { createAudioUrlFromFile } from "@/utils/files";
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { cx } from "@emotion/css";
+import React from "react";
+import { FixedSizeList as List, ListChildComponentProps } from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
 
-const Containter = () => {
-  const [url, setURL] = useState("");
-
+const Containter = React.memo(() => {
   const useOpenFile = useTranscribeStore((state) => state.open_file);
-  console.log(useOpenFile);
-  const createBlobURL = async () => {
-    const blobURL = await createAudioUrlFromFile(useOpenFile.file_path);
-    console.log("url ", blobURL);
-    setURL(blobURL);
-  };
-  
+
+  const [p, setP] = useState<string[]>([]);
+
   useEffect(() => {
-    if(useOpenFile.file_path !== "")
-      createBlobURL();
-  }, [useOpenFile.file_path]);
+    console.log(' containter ',useOpenFile.text);
+    
+    
+    setP(useOpenFile.text.split("\n\n").slice(1, -1));
+    
+  }, [useOpenFile]);
+
   return (
     <div className="h-full w-full flex flex-col">
-      <ScrollArea
-       className="taller:h-[55em] tall:h-[45rem] normalh:h-[35rem] h-[25rem] w-full flex flex-col">
-        {useOpenFile.text.split("\n").map((line, index) => (
-          <TextItem key={index} text={line} />
-        ))}
-      </ScrollArea>
-      <div className="flex-1 w-full py-2">
-        {
-          url && 
-        <Audio url={url} />
-        }
-      </div>
+      <h1
+        className={cx(
+          "text-lg",
+          "backdrop-blur-lg z-10 sticky top-4 w-full flex justify-center bg-transparent"
+        )}
+      >
+        {useOpenFile.file_name && useOpenFile.file_name}
+      </h1>
+      {useOpenFile.file_path !== "" ? (
+        <div className="h-full w-full px-2">
+          {p.length > 0 ? (
+            <div className="h-full w-full">
+              <AutoSizer className="">
+                {({ height, width }) => (
+                  <List
+                    className="List no-scrollbar"
+                    height={height}
+                    itemCount={p.length}
+                    itemSize={60}
+                    itemData={p}
+                    width={width}
+                  >
+                    {Row}
+                  </List>
+                )}
+              </AutoSizer>
+            </div>
+          ) : (
+            <div className="h-full w-full flex justify-center items-center">
+              You need transcribe first
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="h-full w-full">
+          <div className="h-full w-full flex items-center justify-center">
+            {" "}
+            Transcribe your audio into text in few minutes{" "}
+          </div>
+        </div>
+      )}
     </div>
   );
+});
+
+const Row = ({ data,index, style }: ListChildComponentProps) => {
+   
+  return <TextItem text={data[index]} style={style} />;
 };
 
 export default Containter;

@@ -1,7 +1,7 @@
 export interface State {
     transcribe: {
-        transcribe_file_id: number;
-        transcribing: boolean;
+        transcribe_file_ids: number[];
+        
     }
     open_file: {
         id?: number;
@@ -13,13 +13,21 @@ export interface State {
         create_time?: number;
         update_time?: number;
     }
+    playing_file:{
+        playing:boolean;
+        currentTime:number;
+    }
 
+}
+
+export interface playing_file  {
+    playing:boolean;
+    currentTime:number;
 }
 
 export const initialState: State = {
     transcribe:{
-        transcribe_file_id: 0,
-        transcribing: false
+        transcribe_file_ids: [],
     },
     open_file:{
         text: "",
@@ -27,5 +35,9 @@ export const initialState: State = {
         file_path: "",
         file_type: "",
         duration: 0
+    },
+    playing_file:{
+        playing: false,
+        currentTime: 0
     }
 };

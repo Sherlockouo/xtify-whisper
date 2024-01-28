@@ -2,7 +2,7 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devPath": "http://localhost:1420",
+    "devPath": "http://localhost:2024",
     "distDir": "../dist"
   },
   "package": {
@@ -106,9 +106,10 @@
         "fullscreen": false,
         "height": 800,
         "resizable": true,
+        "label": "main",
         "title": "xtify-whisper",
         "width": 1200,
-		"fileDropEnabled": true
+		    "fileDropEnabled": true
       }
     ]
   }

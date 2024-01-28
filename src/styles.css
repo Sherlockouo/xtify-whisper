@@ -1,9 +1,19 @@
+html,
+body {
+
+    -ms-overflow-style: none; 
+scrollbar-width: none; 
+margin: 0;
+padding: 0;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 html::-webkit-scrollbar {
     display: none;
-  }
-  html,
-  body {
-  -ms-overflow-style: none; /* IE and Edge /
-  scrollbar-width: none; / Firefox */
-  }
+}
+
+*:not(.selectable) *{
+    user-select: none;
+    -webkit-user-select: none;
+    cursor:default;
+}

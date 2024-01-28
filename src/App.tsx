@@ -6,24 +6,29 @@ import { useEffect } from "react";
 import { db } from "./utils/db";
 import { useConfig } from "./hooks/useConfig";
 import { changeTheme } from "./utils/theme";
-import { HashRouter } from "react-router-dom";
+import { BrowserRouter } from "react-router-dom";
+import { ensureRecordingDir, ensureWaveDir } from "./utils/fs";
 
 function App() {
   const [theme] = useConfig("theme", "light");
   useEffect(() => {
     changeTheme(theme);
   }, [theme]);
-
+  const initDir =async () => {
+    await Promise.all([ensureRecordingDir(),ensureWaveDir()])
+  }
   useEffect(() => {
     db.load();
+    initDir();
   }, []);
+  
   return (
     <div className="h-full w-full">
-      <HashRouter>
+      <BrowserRouter>
         <Layout />
+      </BrowserRouter>
         <CMDK />
-        <Toaster />
-      </HashRouter>
+        <Toaster richColors/>
     </div>
   );
 }

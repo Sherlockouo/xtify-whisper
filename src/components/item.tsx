@@ -5,19 +5,40 @@ import {
   CrossCircledIcon,
   PlayIcon,
   ReloadIcon,
-  TrackNextIcon,
   TrashIcon,
 } from "@radix-ui/react-icons";
 import { useTranscribeStore } from "@/store/createStore";
 import { useLocation, useNavigate } from "react-router-dom";
-import { IoRefresh } from "react-icons/io5";
-import { useTransCribe } from "@/hooks/useState";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import moment from "moment";
+import { Badge } from "@/components/ui/badge";
+import { useShallow } from "zustand/react/shallow";
+import { CSSProperties, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { findByFilename, updateByFilename } from "@/api/db-api/db-api";
+import { loadTranscription } from "@/utils/whisper";
+import { getDuration } from "@/utils/ffmpeg";
+import { Child } from "@tauri-apps/api/shell";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cx } from "class-variance-authority";
+import { resourceDir } from "@tauri-apps/api/path";
+import { Progress } from "@/components/ui/progress"
 
 export interface FileItem {
   id?: number;
@@ -34,39 +55,87 @@ export interface FileItem {
 
 interface FileItemProps {
   item: FileItem;
+  className?: string;
   delete: (id: number) => void;
-  retranscribe: (file_name: string) => void;
+  style?: CSSProperties;
 }
 
 export const FileItemBox = ({
+  className,
   item,
+  style,
   delete: deleteFileItem,
-  retranscribe: retranscribe,
 }: FileItemProps) => {
-  const { openFile, transcribeFile } = useTranscribeStore();
-  const { transcribing, transcribe_file_id } = useTransCribe();
+  const { transcribeFileIds, openFile, addTranscribeFile, delTranscribeFile } =
+    useTranscribeStore(
+      useShallow((state) => ({
+        transcribeFileIds: state.transcribe.transcribe_file_ids,
+        openFile: state.openFile,
+        addTranscribeFile: state.addTranscribeFile,
+        delTranscribeFile: state.delTranscribeFile,
+      }))
+    );
+
+  const [currentFileTranscribing, setCurrentFileTranscribing] = useState(false);
+  const [abort, setAbort] = useState<Child>();
   const location = useLocation();
   const navigate = useNavigate();
-  return (
-    <div className="px-2 mb-1 rounded-md border-[1px] border-solid border-slate-100 hover:bg-slate-200 flex items-center justify-between cursor-default">
-      <div
-        className="flex items-center"
-        onClick={() => {
-          openFile(item);
-          console.log("location ", location.pathname);
+  // read models from resources path
+  const [models] = useState(["ggml-base.en.bin"]);
 
-          if (location.pathname !== "/") {
-            navigate(`/`);
-          }
-        }}
-      >
+  const transcribe = async (file_name: string) => {
+    const localItem = await findByFilename(file_name);
+    if (localItem && (localItem as any).length > 0) {
+      const file = (localItem as FileItem[])[0];
+
+      const { transcription, child } = await loadTranscription(
+        file.file_path,
+        () => {
+          delTranscribeFile(file.id ?? 0);
+        }
+      );
+      setAbort(child);
+      const scripts = await transcription;
+
+      await updateByFilename(
+        scripts.join("\n"),
+        await getDuration(file.file_path),
+        file_name,
+        "ggml-base.en.bin"
+      );
+      // 删除 transcribing 状态
+      delTranscribeFile(file.id ?? 0);
+      setAbort(undefined);
+    }
+  };
+
+  useEffect(() => {
+    setCurrentFileTranscribing(transcribeFileIds.includes(item.id ?? 0));
+    console.log(" set to false ", transcribeFileIds.includes(item.id ?? 0));
+  }, [transcribeFileIds]);
+
+  return (
+    <div
+      style={style}
+      className={cx(
+        className,
+        " px-2  mb-1 rounded-md border-[1px] border-solid border-slate-100 hover:bg-slate-200 flex items-center justify-between cursor-default "
+      )}
+      onClick={() => {
+        console.log(" item ", item);
+
+        openFile(item);
+        if (location.pathname !== "/content") {
+          navigate(`/content`);
+        }
+      }}
+    >
+      <div className="flex items-center">
         <div className="px-1">
-          {item.text == "" ? (
-            transcribing && item.id === transcribe_file_id ? (
-              <IoRefresh className=" animate-spin" />
-            ) : (
-              <CrossCircledIcon />
-            )
+          {currentFileTranscribing ? (
+            <Progress value={0}  className="rounded-full"/>
+          ) : item.text === "" ? (
+            <CrossCircledIcon />
           ) : (
             <CheckCircledIcon color="green" />
           )}
@@ -86,24 +155,94 @@ export const FileItemBox = ({
           </TooltipProvider>
           {/* hover i 展示 */}
           {/* <div className="max-w-[200px] text-wrap">{item.file_path}</div> */}
-          <div className="max-w-[200px] text-wrap flex justify-between gap-3">
-            <span>{item.file_type}</span>
-            <span>{secondsToTimecode(Math.ceil(item.duration))}</span>
+
+          <Badge className="whitespace-nowrap pointer-events-none">
+            {item.model}
+          </Badge>
+
+          <div className="max-w-[200px] text-wrap flex justify-start gap-2">
+            <span className="text-sm">{item.file_type}</span>
+            <span className="text-sm">
+              {secondsToTimecode(Math.ceil(item.duration))}
+            </span>
           </div>
         </div>
       </div>
-      <div className="h-full flex gap-1">
-        <Button
-          size={"sm"}
-          onClick={() => {
-            // retranscribe
-            retranscribe(item.file_name);
-            // set icon to loading
-            transcribeFile(true, item.id ?? 0);
-          }}
-        >
-          {item.text === "" ? <PlayIcon /> : <ReloadIcon />}
-        </Button>
+      <div
+        className="h-full flex gap-1"
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <Popover>
+          <PopoverTrigger>
+            <div className="h-8  w-10 rounded-md bg-green-500 flex items-center justify-center">
+
+            <PlayIcon />
+            </div>
+          </PopoverTrigger>
+          <PopoverContent side={"top"} className="w-15">
+            <div className="flex gap-2 w-full justify-center items-center">
+              <Select defaultValue={models[0]}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {models.map((modelname) => (
+                    <SelectItem key={modelname} value={modelname}>
+                      {modelname}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {abort && (
+                <Button
+                  size={"sm"}
+                  variant={"destructive"}
+                  onClick={() => {
+                    abort.kill();
+                    setAbort(undefined);
+                    // delete file id
+                    delTranscribeFile(item.id ?? 0);
+                    // update current item
+                    setCurrentFileTranscribing(false);
+                    toast.info("Aborted " + item.file_name);
+                  }}
+                >
+                  Abort
+                </Button>
+              )}
+              <Button
+                className={cx(
+                  item.text === "" ? "bg-green-500" : " bg-amber-500"
+                )}
+                size={"sm"}
+                onClick={async () => {
+                  setCurrentFileTranscribing(true);
+                  // set icon to loading
+                  addTranscribeFile(item.id ?? 0);
+                  // set current item
+                  toast.success("Transcribing " + item.file_name);
+
+                  // retranscribe
+                  await transcribe(item.file_name);
+                  setCurrentFileTranscribing(false);
+                }}
+              >
+                {item.text === "" ? (
+                  <div className="flex gap-1">
+                    <PlayIcon />
+                    Transcribe
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <ReloadIcon /> Retranscribe
+                  </div>
+                )}
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <Button
           size={"sm"}
@@ -119,14 +258,36 @@ export const FileItemBox = ({
 
 interface TextItemProps {
   text: string;
+  style: CSSProperties;
 }
 
-export const TextItem = ({ text }: TextItemProps) => {
+export const TextItem = ({ text, style }: TextItemProps) => {
+  const { updatePlaying } = useTranscribeStore(
+    useShallow((state) => ({ updatePlaying: state.updatePlaying }))
+  );
+  // 提取所有 [] 内的内容
+  const matches = text.split("   ");
+  // 提取时间戳，并去掉方括号
+  const time = matches && matches.length > 0 ? matches[0].slice(1, -1) : "";
+  // 提取剩余文本
+  const audioText = matches && matches.length > 1 ? matches[1] : "";
   return (
-    <div className="px-2 py-2 ">
-      {""}
-      {text}
-      {""}
+    <div className="px-2 py-2 flex gap-2 items-center" style={style}>
+      <div className="flex select-none cursor-default">
+        <Button
+          className="w-[247px] select-none cursor-default"
+          onClick={() => {
+            const seconds = moment.duration(time.split(" --> ")[0]).asSeconds();
+            updatePlaying({
+              currentTime: seconds,
+              playing: true,
+            });
+          }}
+        >
+          {time}
+        </Button>
+      </div>
+      <div className=" flex text-lg flex-wrap ">{audioText}</div>
     </div>
   );
 };

@@ -13,7 +13,7 @@ export class MediaFile {
 	}
 
 	get name() {
-		return this.fileName.split('.')[0];
+		return this.fileName.split(".").slice(0,-1).join("");
 	}
 
 	get extension() {
