@@ -68,11 +68,12 @@ export const FileItemBox = ({
   delete: deleteFileItem,
   refresh,
 }: FileItemProps) => {
-  const { transcribeFileIds, openFile, addTranscribeFile, delTranscribeFile } =
+  const { transcribeFileIds,getOpenFile, openFile, addTranscribeFile, delTranscribeFile } =
     useTranscribeStore(
       useShallow((state) => ({
         transcribeFileIds: state.transcribe.transcribe_file_ids,
         openFile: state.openFile,
+        getOpenFile: state.open_file,
         addTranscribeFile: state.addTranscribeFile,
         delTranscribeFile: state.delTranscribeFile,
       }))
@@ -128,6 +129,7 @@ export const FileItemBox = ({
       style={style}
       className={cx(
         className,
+        getOpenFile.id === item.id && " bg-slate-200",
         " px-2  mb-1 rounded-md border-[1px] border-solid border-slate-100 hover:bg-slate-200 flex items-center justify-between cursor-default "
       )}
       onClick={async () => {
@@ -237,6 +239,7 @@ export const FileItemBox = ({
                 </Button>
               )}
               <Button
+                disabled={currentFileTranscribing}
                 className={cx(
                   item.text === "" ? "bg-green-500" : " bg-amber-500"
                 )}

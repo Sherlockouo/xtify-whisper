@@ -31,7 +31,7 @@ const Containter = React.memo(() => {
       </h1>
       {useOpenFile.file_path !== "" ? (
         <div className="h-full w-full px-2">
-          {p.length > 0 ? (
+          {useOpenFile.text !== "" ? (
             <div className="h-full w-full">
               <AutoSizer className="">
                 {({ height, width }) => (

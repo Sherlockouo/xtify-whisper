@@ -55,7 +55,7 @@ export async function loadTranscription(file_path: string, duration: number, mod
     ]);
 
     const output: string[] = [];
-    
+    const child = await transcribe.spawn();
     
     const transcriptionPromise = new Promise<string[]>((resolve, reject) => {
         transcribe.stderr.on('data', (error) => {
@@ -65,8 +65,6 @@ export async function loadTranscription(file_path: string, duration: number, mod
             // Filter any empty lines
             if (line) {
                 output.push(line);
-                // TODO: update progress here
-                // console.log('line:', line)
                 debouncedProcessToast(line,duration)
             }
 
@@ -82,7 +80,6 @@ export async function loadTranscription(file_path: string, duration: number, mod
         });
     });
 
-    const child = await transcribe.spawn();
 
     return { transcription: transcriptionPromise, child };
 }

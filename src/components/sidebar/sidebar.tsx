@@ -212,7 +212,7 @@ const SideBar = () => {
       origin_file_path: file.originalPath,
       file_path: file.transformedPath,
       duration: await getDuration(file.path),
-      model: builtInModelPath,
+      model: builtInModelPath?builtInModelPath:"",
     };
     await addToTranscribed(
       "",

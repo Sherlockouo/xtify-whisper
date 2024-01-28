@@ -5,6 +5,7 @@ import { useTranscribeStore } from "@/store/createStore";
 import { useShallow } from "zustand/react/shallow";
 import { css, cx } from "@emotion/css";
 import { Button } from "../ui/button";
+import { useConfig } from "@/hooks/useConfig";
 
 interface AudioProps {
   url: string;
@@ -13,7 +14,12 @@ interface AudioProps {
 }
 const Audio = ({ url, currentTime, playing }: AudioProps) => {
   const audioRef = useRef<HTMLAudioElement>(null);
-
+  const [volume, setVolume] = useConfig("audio_volume", 0.3);
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume ?? 0.3;
+    }
+  }, []);
   useEffect(() => {
     if (audioRef.current) {
       if (audioRef.current.currentTime !== currentTime) {
@@ -27,9 +33,18 @@ const Audio = ({ url, currentTime, playing }: AudioProps) => {
       }
     }
   }, [currentTime, playing]);
+
   return (
     <div className="h-full w-full">
-      <audio className="w-full" controls src={url} ref={audioRef} />
+      <audio
+        className="w-full"
+        controls
+        src={url}
+        ref={audioRef}
+        onVolumeChange={(e) => {
+          setVolume((e.target as any).volume);
+        }}
+      />
     </div>
   );
 };
@@ -52,7 +67,7 @@ export const AudioControl = () => {
   };
   useEffect(() => {
     if (openFile.file_path !== "") {
-      setURL("")
+      setURL("");
       updatePlaying({ playing: false, currentTime: 0 });
       createBlobURL();
     }

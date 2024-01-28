@@ -11,6 +11,7 @@ export const useConfig = (
   defaultValue: any,
   options: any = {}
 ) => {
+  
   const [property, setPropertyState, getProperty] = useGetState(null);
   const { sync = true } = options;
 
