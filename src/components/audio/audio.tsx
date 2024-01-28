@@ -6,6 +6,9 @@ import { useShallow } from "zustand/react/shallow";
 import { css, cx } from "@emotion/css";
 import { Button } from "../ui/button";
 import { useConfig } from "@/hooks/useConfig";
+import { downloadDir } from "@tauri-apps/api/path";
+import { writeTextFile } from "@tauri-apps/api/fs";
+import { save } from "@tauri-apps/api/dialog";
 
 interface AudioProps {
   url: string;
@@ -72,6 +75,15 @@ export const AudioControl = () => {
       createBlobURL();
     }
   }, [openFile]);
+  async function handleSave(name: string, content: string, format: string) {
+    const defaultPath = await downloadDir();
+    const path = await save({
+      title: "Save transcription",
+      defaultPath: `${defaultPath}${name}.${format}`,
+      filters: [{ name, extensions: [format] }],
+    });
+    if (path) writeTextFile(path, content);
+  }
 
   return (
     <div
@@ -97,8 +109,22 @@ export const AudioControl = () => {
               </div>
               <div className="flex items-center gap-3">
                 {/* TODO: export  */}
-                <Button onClick={() => {}}>Export plaintext</Button>
-                <Button onClick={() => {}}>Export vtt</Button>
+                <Button
+                disabled={openFile.text === ""}
+                  onClick={() => {
+                    handleSave(openFile.file_name.split(".").slice(0,-1).join(""), openFile.text, "txt");
+                  }}
+                >
+                  Export plaintext
+                </Button>
+                <Button
+                disabled={!openFile.vtt || openFile.vtt === ""}
+                  onClick={() => {
+                    handleSave(openFile.file_name.split(".").slice(0,-1).join(""), openFile.vtt ?? "", "vtt");
+                  }}
+                >
+                  Export vtt
+                </Button>
               </div>
             </div>
           )

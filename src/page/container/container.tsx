@@ -13,8 +13,6 @@ const Containter = React.memo(() => {
 
   useEffect(() => {
     console.log(' containter ',useOpenFile.text);
-    
-    
     setP(useOpenFile.text.split("\n\n").slice(1, -1));
     
   }, [useOpenFile]);

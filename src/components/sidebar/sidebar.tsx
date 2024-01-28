@@ -259,14 +259,14 @@ const SideBar = () => {
       <div
         data-tauri-drag-region
         className={cx(
-          "bg-blue-200 py-2 h-[3em] w-full flex justify-center ",
+          "py-2 h-[3em] w-full flex justify-center ",
           css`
             grid-area: side-head;
           `
         )}
       >
         <h2>
-          {""} Logo {""}
+          {""}  {""}
         </h2>
       </div>
       {/* search */}
@@ -379,7 +379,7 @@ const SideBar = () => {
       {/* </div> */}
       <div
         className={cx(
-          "rounded-md w-full  flex  flex-col gap-1 items-center justify-between px-2 ",
+          "rounded-md w-full my-2 flex  flex-col gap-1 items-center justify-between px-2 ",
           css`
             grid-area: side-foot;
           `
