@@ -6,9 +6,14 @@ export class MediaFile {
 	blobUrl: string | null = null;
 	originalPath: string;
 
-	constructor(path: string, transformedPathDir: string) {
+	constructor(path: string, transformedPathDir: string,fileType?: string) {
 		this.originalPath = path;
 		this.url = new URL('file://' + path);
+		if(fileType != ""){
+			// not support
+			this.transformedPath = ""
+			return;
+		}
 		this.transformedPath = transformedPathDir + this.name + '-tmp.wav';
 	}
 
@@ -30,8 +35,8 @@ export class MediaFile {
 		return decodeURI(this.url.pathname);
 	}
 
-	static async create(path: string) {
+	static async create(path: string,fileType?: string) {
 		const waveDir = await getWaveDir();
-		return new MediaFile(path, waveDir);
+		return new MediaFile(path, waveDir,fileType);
 	}
 }

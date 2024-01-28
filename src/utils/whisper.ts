@@ -1,5 +1,6 @@
 import { resolveResource } from '@tauri-apps/api/path';
 import { Child, Command } from '@tauri-apps/api/shell';
+import { toast } from 'sonner';
 
 /**
  * Runs the whisper model on a file and returns the output in vtt format
@@ -7,7 +8,7 @@ import { Child, Command } from '@tauri-apps/api/shell';
  */
 // export async function loadTranscription(file_path:string): Promise<string[]> {
 // 	const modelPath = await resolveResource('resources/models/ggml-base.en.bin');
-	
+
 // 	const transcribe = Command.sidecar('binaries/whisper', [
 // 		'-m',
 // 		modelPath,
@@ -24,14 +25,16 @@ import { Child, Command } from '@tauri-apps/api/shell';
 // 		});
 // 		transcribe.on('error', reject);
 // 		transcribe.on('close', () => resolve(output));
-		
+
 // 	let child = await  transcribe.spawn();
 // 	});
 // }
 
-export async function loadTranscription(file_path: string,callback?:()=>void): Promise<{transcription: Promise<string[]>, child: Child}> {
-    
-    const modelPath = await resolveResource('resources/models/ggml-base.en.bin');
+export async function loadTranscription(file_path: string, modelPath: string, callback?: () => void): Promise<{ transcription: Promise<string[]>, child: Child }> {
+    if (!modelPath || modelPath === "") {
+        modelPath = await resolveResource('resources/models/ggml-base.en.bin');
+        console.log('Fallback to default model' + modelPath);
+    }
 
     const transcribe = Command.sidecar('binaries/whisper', [
         '-m',
@@ -46,12 +49,18 @@ export async function loadTranscription(file_path: string,callback?:()=>void): P
         transcribe.stderr.on('data', (error) => console.error(error));
         transcribe.stdout.on('data', (line) => {
             // Filter any empty lines
-            if (line) output.push(line);
-            // TODO: update progress here
-            // console.log('line:', line);
-            
+            if (line) {
+                output.push(line);
+                // TODO: update progress here
+                // console.log('line:', line);
+                toast.info(line)
+            }
+
         });
-        transcribe.on('error', reject);
+        transcribe.on('error', (e) => {
+            toast.error("Error " + e)
+            reject();
+        });
         transcribe.on('close', () => {
             callback && callback()
             resolve(output)

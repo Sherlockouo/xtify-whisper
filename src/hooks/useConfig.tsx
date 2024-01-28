@@ -17,6 +17,8 @@ export const useConfig = (
   // 同步到db (State -> db)
   const syncTodb = useDebouncedCallback(
     (v) => {
+      console.log('set key ',key,' value ',v);
+      
       db.set(key, v);
       db.save();
       emit(`${key}_changed`, v);

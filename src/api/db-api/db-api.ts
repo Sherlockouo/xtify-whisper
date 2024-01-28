@@ -3,14 +3,12 @@ import Database from "tauri-plugin-sql-api";
 const wrapper = async (fn: (db: Database) => Promise<unknown>) => {
     const db = await Database.load("sqlite:transcribe.db");
     const result = await fn(db);
-    db.close();
+    await db.close();
     return result
 }
 
 export const initDatabase = async () => {
-    wrapper(async (db) => {
-        console.log("initDatabase");
-        
+    wrapper(async (db) => {        
         await db.execute(
             "CREATE TABLE IF NOT EXISTS transcribed_files(id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL,file_name TEXT NOT NULL,file_type TEXT NOT NULL,origin_file_path TEXT NOT NULL,file_path TEXT NOT NULL, duration INTEGER NOT NULL,model TEXT NOT NULL, create_timestamp TIMESTAMP INTEGER NOT NULL ,update_timestamp INTEGER NOT NULL,status INTEGER DEFAULT 1)"
         );
@@ -50,9 +48,7 @@ export const searchByKeyword = async (searchKeyWord: string, page: number) => {
 
 export const updateByFilename = async (text: string, duration: number, file_name: string, model: string) => {
     return wrapper(async (db) => {
-        console.log('update by db file_name',file_name);
-        
-        await db.execute(
+        const res = await db.execute(
             "UPDATE transcribed_files SET text=$1, duration=$2,model=$3,update_timestamp=$4 WHERE file_name=$5",
             [text, duration, model, Date.now(),file_name,]
         );

@@ -37,9 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cx } from "class-variance-authority";
-import { resourceDir } from "@tauri-apps/api/path";
-import { Progress } from "@/components/ui/progress"
-
+import { useConfig } from "@/hooks/useConfig";
 export interface FileItem {
   id?: number;
   text: string;
@@ -58,6 +56,7 @@ interface FileItemProps {
   className?: string;
   delete: (id: number) => void;
   style?: CSSProperties;
+  updateCallback?: () => void;
 }
 
 export const FileItemBox = ({
@@ -78,10 +77,11 @@ export const FileItemBox = ({
 
   const [currentFileTranscribing, setCurrentFileTranscribing] = useState(false);
   const [abort, setAbort] = useState<Child>();
+  const [currentModel, setCurrentModel] = useState(item.model);
   const location = useLocation();
   const navigate = useNavigate();
   // read models from resources path
-  const [models] = useState(["ggml-base.en.bin"]);
+  const [models] = useConfig("model_path", []);
 
   const transcribe = async (file_name: string) => {
     const localItem = await findByFilename(file_name);
@@ -90,28 +90,25 @@ export const FileItemBox = ({
 
       const { transcription, child } = await loadTranscription(
         file.file_path,
+        currentModel,
         () => {
           delTranscribeFile(file.id ?? 0);
         }
       );
       setAbort(child);
+
       const scripts = await transcription;
 
-      await updateByFilename(
-        scripts.join("\n"),
-        await getDuration(file.file_path),
-        file_name,
-        "ggml-base.en.bin"
-      );
+      await updateByFilename(scripts.join("\n"), 0, file_name, currentModel);
+      
       // 删除 transcribing 状态
       delTranscribeFile(file.id ?? 0);
-      setAbort(undefined);
+      // if (abort) setAbort(undefined);
     }
   };
 
   useEffect(() => {
-    setCurrentFileTranscribing(transcribeFileIds.includes(item.id ?? 0));
-    console.log(" set to false ", transcribeFileIds.includes(item.id ?? 0));
+    setCurrentFileTranscribing(transcribeFileIds.includes(item?.id ?? 0));
   }, [transcribeFileIds]);
 
   return (
@@ -122,8 +119,6 @@ export const FileItemBox = ({
         " px-2  mb-1 rounded-md border-[1px] border-solid border-slate-100 hover:bg-slate-200 flex items-center justify-between cursor-default "
       )}
       onClick={() => {
-        console.log(" item ", item);
-
         openFile(item);
         if (location.pathname !== "/content") {
           navigate(`/content`);
@@ -133,7 +128,7 @@ export const FileItemBox = ({
       <div className="flex items-center">
         <div className="px-1">
           {currentFileTranscribing ? (
-            <Progress value={0}  className="rounded-full"/>
+            <ReloadIcon className="animate-spin" />
           ) : item.text === "" ? (
             <CrossCircledIcon />
           ) : (
@@ -156,8 +151,19 @@ export const FileItemBox = ({
           {/* hover i 展示 */}
           {/* <div className="max-w-[200px] text-wrap">{item.file_path}</div> */}
 
-          <Badge className="whitespace-nowrap pointer-events-none">
-            {item.model}
+          <Badge className="whitespace-nowrap ">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="max-w-[120px] overflow-hidden overflow-ellipsis whitespace-nowrap">
+                    {item.model}
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="">
+                  <p>{item.model}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </Badge>
 
           <div className="max-w-[200px] text-wrap flex justify-start gap-2">
@@ -176,23 +182,29 @@ export const FileItemBox = ({
       >
         <Popover>
           <PopoverTrigger>
-            <div className="h-8  w-10 rounded-md bg-green-500 flex items-center justify-center">
-
-            <PlayIcon />
+            <div className="h-8  w-10 rounded-md bg-green-400 flex items-center justify-center">
+              <PlayIcon />
             </div>
           </PopoverTrigger>
           <PopoverContent side={"top"} className="w-15">
             <div className="flex gap-2 w-full justify-center items-center">
-              <Select defaultValue={models[0]}>
+              <Select
+                value={currentModel}
+                onValueChange={(value) => {
+                  setCurrentModel(value);
+                }}
+                defaultValue={currentModel}
+              >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Model" />
                 </SelectTrigger>
                 <SelectContent>
-                  {models.map((modelname) => (
-                    <SelectItem key={modelname} value={modelname}>
-                      {modelname}
-                    </SelectItem>
-                  ))}
+                  {models &&
+                    models.map((modelname: string) => (
+                      <SelectItem key={modelname} value={modelname}>
+                        {modelname}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
               {abort && (
@@ -218,14 +230,18 @@ export const FileItemBox = ({
                 )}
                 size={"sm"}
                 onClick={async () => {
+                  if (currentModel === "") {
+                    toast.warning("Please select a model.");
+                    return;
+                  }
                   setCurrentFileTranscribing(true);
                   // set icon to loading
                   addTranscribeFile(item.id ?? 0);
                   // set current item
-                  toast.success("Transcribing " + item.file_name);
+                  toast.info("Transcribing " + item.file_name);
 
                   // retranscribe
-                  await transcribe(item.file_name);
+                  transcribe(item.file_name);
                   setCurrentFileTranscribing(false);
                 }}
               >

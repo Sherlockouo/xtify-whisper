@@ -1,8 +1,8 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { openMediaFile } from "@/utils/fs";
-import { create16bitWav } from "@/utils/ffmpeg";
+import { openFileWithFilter } from "@/utils/fs";
+import { create16bitWav, getDuration } from "@/utils/ffmpeg";
 import { FileItem, FileItemBox } from "../item";
 import {
   ArrowDownIcon,
@@ -31,9 +31,11 @@ import {
 import AutoSizer from "react-virtualized-auto-sizer";
 import { FixedSizeList as List, ListChildComponentProps } from "react-window";
 import { useTranscribeStore } from "@/store/createStore";
+import { VERSION } from "@/utils/env";
+import { useConfig } from "@/hooks/useConfig";
 
 const SideBar = () => {
-  const {transcribingIDS} = useTranscribeStore((state)=>({transcribingIDS:state.transcribe.transcribe_file_ids}))
+  const {transcribingIDS} = useTranscribeStore((state)=>({transcribingIDS: state.transcribe.transcribe_file_ids}))
   const [searchKeyWord, setSearchKeyWord] = useState("");
   const [total, setTotal] = useState(0);
   const [page] = useState(1);
@@ -41,7 +43,12 @@ const SideBar = () => {
   const [mode, setMode] = useState(0);
   const [dragging, setDragging] = useState(false);
   const navigate = useNavigate();
-  const {openedFile,openFile} = useTranscribeStore((state) => ({openedFile:state.open_file,openFile:state.openFile}));
+  const { openedFile, openFile } = useTranscribeStore((state) => ({
+    openedFile: state.open_file,
+    openFile: state.openFile,
+  }));
+  const [builtInModelPath] = useConfig("built_in_model_path", "empty");
+  const [defaultModelPath] = useConfig("default_model_path", "");
 
   const addToTranscribed = async (
     text: string,
@@ -58,7 +65,7 @@ const SideBar = () => {
       await updateTranscribed(text, duration, (exists as any).id, model);
       return;
     }
-    addTranscribeFile(
+    const res = await addTranscribeFile(
       text,
       fileName,
       fileType,
@@ -66,22 +73,20 @@ const SideBar = () => {
       filePath,
       duration,
       model
-    ).then(
-      (_v) => {
-        getData();
-      },
-      (_e) => {
-        addToTranscribed(
-          text,
-          fileName,
-          fileType,
-          origin_file_path,
-          filePath,
-          duration,
-          model
-        );
-      }
     );
+    if ((res as any).rowsAffected > 1) {
+      getData();
+    } else {
+      addToTranscribed(
+        text,
+        fileName,
+        fileType,
+        origin_file_path,
+        filePath,
+        duration,
+        model
+      );
+    }
   };
 
   const search = async () => {
@@ -102,7 +107,7 @@ const SideBar = () => {
 
   const getData = async () => {
     const result = await getDataByPage(page);
-    
+
     setItems(result as FileItem[]);
   };
 
@@ -118,18 +123,18 @@ const SideBar = () => {
 
   const deleteTranscribed = async (id: number) => {
     await deleteByID(id);
-  if(openedFile.id === id){
-    openFile({
-      text: "",
-      file_name: "",
-      file_path: "",
-      file_type: "",
-      origin_file_path: "",
-      duration: 0,
-      model: ""
-    })
-  }
-    toast.success("Delete Success")
+    if (openedFile.id === id) {
+      openFile({
+        text: "",
+        file_name: "",
+        file_path: "",
+        file_type: "",
+        origin_file_path: "",
+        duration: 0,
+        model: "",
+      });
+    }
+    toast.success("Delete Success.");
     getData();
   };
 
@@ -137,12 +142,10 @@ const SideBar = () => {
     init();
     getData();
     const unlistenHover = listen("tauri://file-drop-hover", (event) => {
-      console.log(" ", dragging, "hover", event);
       setDragging(true);
     });
 
     const unlistenCancelled = listen("tauri://file-drop-cancelled", (event) => {
-      console.log(" ", dragging, "cancelled", event);
       setDragging(false);
     });
 
@@ -164,10 +167,10 @@ const SideBar = () => {
             "avi",
             "webm",
           ].includes(
-            ((event.payload as any)[0] as string).split(".").slice(-1)[0]
+            ((event.payload as any)[i] as string).split(".").slice(-1)[0]
           )
         ) {
-          MediaFile.create((event.payload as any)[i]).then((file) => {
+          MediaFile.create((event.payload as any)[i], "").then((file) => {
             addRecord(file);
           });
           toast.success("Add file successfully, now you can process it.");
@@ -195,8 +198,7 @@ const SideBar = () => {
 
   async function addRecord(file: MediaFile) {
     const exists = await findByFilename(file.fileName);
-    console.log('exists ', exists);
-    
+
     if ((exists as any).length > 0) {
       toast.warning("File already exists: " + file.fileName);
       return;
@@ -207,8 +209,8 @@ const SideBar = () => {
       file_type: file.extension,
       origin_file_path: file.originalPath,
       file_path: file.transformedPath,
-      duration: 0,
-      model: "ggml-base.en.bin",
+      duration: await getDuration(file.path),
+      model: defaultModelPath ? builtInModelPath : "default",
     };
     await addToTranscribed(
       "",
@@ -219,7 +221,7 @@ const SideBar = () => {
       item.duration,
       item.model
     );
-
+    getData();
     await create16bitWav(file);
   }
 
@@ -300,7 +302,7 @@ const SideBar = () => {
           onClick={async () => {
             if (searchKeyWord === "") {
               // add file to waitlist
-              const file = await openMediaFile();
+              const file = await openFileWithFilter("audioFilter");
 
               await addRecord(file);
             } else {
@@ -401,7 +403,7 @@ const SideBar = () => {
         <div className="flex items-center gap-1 ">
           <InfoCircledIcon />
           <div className="text-center text-sm font-thin">
-            {""} version v0.0.1 {""}
+            {""} {VERSION} {""}
           </div>
         </div>
       </div>

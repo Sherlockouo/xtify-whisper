@@ -1,6 +1,6 @@
 import { MediaFile } from '@/utils/mediaFile';
 import { appCacheDir } from '@tauri-apps/api/path';
-import { open } from '@tauri-apps/api/dialog';
+import { DialogFilter, open } from '@tauri-apps/api/dialog';
 import { fs } from '@tauri-apps/api';
 
 export const WAV_DIR = '16-bit-wav';
@@ -28,20 +28,30 @@ export async function getRecordingsDir() {
 	return (await appCacheDir()) + RECORDINGS_DIR + '/';
 }
 
-export async function openMediaFile() {
+const audio = {
+	name: 'Media',
+	extensions: ['wav', 'mp3', 'aif', 'mp4', 'aac', 'mov', 'wmv', 'avi', 'webm']
+};
+
+const model = {
+	name: 'Model',
+	extensions: ['bin']
+};
+
+const fileFilterMap:Record<string, DialogFilter> = {
+		audioFilter: audio,
+		modelFilter: model
+}
+export async function openFileWithFilter(filterType:string) {
 	const opened = (await open({
-        // TODO: set as config
 		multiple: false,
 		filters: [
-			{
-				name: 'Media',
-				extensions: ['wav', 'mp3', 'aif', 'mp4', 'aac', 'mov', 'wmv', 'avi', 'webm']
-			}
+			fileFilterMap[filterType]
 		]
 	})) as string | null;
-    console.log('opened: ' + opened);
     
 	if (!opened) throw new Error(`Could not open file`);
-
-	return MediaFile.create(opened);
+	console.log("filterType",filterType === "audioFilter"," ",filterType);
+	
+	return MediaFile.create(opened,filterType === "audioFilter" ? "":filterType);
 }
