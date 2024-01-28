@@ -52,6 +52,7 @@ export const AudioControl = () => {
   };
   useEffect(() => {
     if (openFile.file_path !== "") {
+      setURL("")
       updatePlaying({ playing: false, currentTime: 0 });
       createBlobURL();
     }

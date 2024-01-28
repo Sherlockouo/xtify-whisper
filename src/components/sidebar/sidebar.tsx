@@ -141,6 +141,7 @@ const SideBar = () => {
   useEffect(() => {
     init();
     getData();
+
     const unlistenHover = listen("tauri://file-drop-hover", (event) => {
       setDragging(true);
     });
@@ -194,7 +195,8 @@ const SideBar = () => {
 
   useEffect(() => {
     getData();
-  }, [total, page,transcribingIDS]);
+  }, [total, page,transcribingIDS,openedFile]);
+
 
   async function addRecord(file: MediaFile) {
     const exists = await findByFilename(file.fileName);
@@ -210,7 +212,7 @@ const SideBar = () => {
       origin_file_path: file.originalPath,
       file_path: file.transformedPath,
       duration: await getDuration(file.path),
-      model: defaultModelPath ? builtInModelPath : "default",
+      model: builtInModelPath,
     };
     await addToTranscribed(
       "",
@@ -225,6 +227,7 @@ const SideBar = () => {
     await create16bitWav(file);
   }
 
+  // TODO: 分页
   // const loadMoreItems = (startIndex, stopIndex) => {
   //   await getDataByPage(page+1)
   // }
@@ -232,7 +235,9 @@ const SideBar = () => {
   const Row = ({ data, index, style }: ListChildComponentProps) => {
     return (
       <div className="" style={style}>
-        <FileItemBox item={data[index]} delete={deleteTranscribed} />
+        <FileItemBox item={data[index]} delete={deleteTranscribed} refresh={()=>{
+          return getData();
+        }}/>
       </div>
     );
   };

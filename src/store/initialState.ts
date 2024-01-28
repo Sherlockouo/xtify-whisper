@@ -1,6 +1,7 @@
 export interface State {
     transcribe: {
         transcribe_file_ids: number[];
+        transcribe_file_progress: number[];
         
     }
     open_file: {
@@ -28,6 +29,7 @@ export interface playing_file  {
 export const initialState: State = {
     transcribe:{
         transcribe_file_ids: [],
+        transcribe_file_progress: [],
     },
     open_file:{
         text: "",

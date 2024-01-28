@@ -22,23 +22,22 @@ import {
 } from "@/components/ui/tooltip";
 
 const Models = () => {
-  const [builtInModelPath] = useConfig(
-    "built_in_model_path",
-    ""
-  );
+  const [builtInModelPath] = useConfig("built_in_model_path", "");
   const [modelPath, setModelPath] = useConfig("model_path", []);
   const [defaultModelPath, setDefaultModelPath] = useConfig(
     "default_model_path",
     ""
   );
   useEffect(() => {
-    if(!modelPath.includes(builtInModelPath)){
-      setModelPath([builtInModelPath,...modelPath])
+    if (modelPath && !modelPath.includes(builtInModelPath)) {
+      setModelPath([builtInModelPath, ...modelPath]);
     }
   }, []);
   async function addRecord() {
     const file = await openFileWithFilter("modelFilter");
-    if (modelPath.includes(file.originalPath)) {
+    if (
+      modelPath && modelPath.includes(file.originalPath)
+    ) {
       toast.warning("Model already exists.");
       return;
     }
@@ -52,34 +51,35 @@ const Models = () => {
           {model}
         </div>
         <div className="flex items-center justify-center">
-        {builtInModelPath !== model &&<motion.div
-            whileHover={{
-              scale: 1.2,
-            }}
-            whileTap={{
-              scale: 0.95,
-            }}
-            className="flex items-center justify-center border-solid border-[1px] rounded-md m-1 "
-            onClick={() => {
-              (modelPath as string[]).splice(
-                (modelPath as string[]).indexOf(model),
-                1
-              );
-              setModelPath(modelPath);
-            }}
-          >
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Cross1Icon className={cx("text-red-500")} />
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Delete the model</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </motion.div>
-          }
+          {builtInModelPath !== model && (
+            <motion.div
+              whileHover={{
+                scale: 1.2,
+              }}
+              whileTap={{
+                scale: 0.95,
+              }}
+              className="flex items-center justify-center border-solid border-[1px] rounded-md m-1 "
+              onClick={() => {
+                (modelPath as string[]).splice(
+                  (modelPath as string[]).indexOf(model),
+                  1
+                );
+                setModelPath(modelPath);
+              }}
+            >
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Cross1Icon className={cx("text-red-500")} />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Delete the model</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </motion.div>
+          )}
           <motion.div
             whileHover={{
               scale: 1.2,
@@ -132,7 +132,9 @@ const Models = () => {
         <div className="flex w-full  flex-col items-start gap-2 justify-center space-x-2">
           <div className="text-lg w-full px-3 py-3 border-solid border-[1px] rounded-md relative">
             {modelPath &&
-              modelPath.map((model: string,index:number) => <Model key={index} model={model} />)}
+              modelPath.map((model: string, index: number) => (
+                <Model key={index} model={model} />
+              ))}
           </div>
           <Button
             className="flex items-center gap-2"

@@ -7,6 +7,7 @@ import { FileItem } from "@/components/item";
 import Models from "./models";
 import { resourceDir } from "@tauri-apps/api/path";
 import { useEffect } from "react";
+import { toast } from "sonner";
 
 const Settings = () => {
   const { openFile } = useTranscribeStore((state) => ({
@@ -35,8 +36,8 @@ const Settings = () => {
      
       <div>
         <Button
-          onClick={() => {
-            clearDB();
+          onClick={async() => {
+            await clearDB();
             const item: FileItem = {
               text: "",
               file_name: "",
@@ -47,11 +48,12 @@ const Settings = () => {
               model: "",
             };
             openFile(item);
+            toast.success("Cleared DB.")
           }}
         >
           Clear DB
         </Button>
-        TODO: 1. 模型选择
+        TODO: 1. 滚动动画
       </div>
       <div className="">
         <Models />

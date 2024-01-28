@@ -6,6 +6,7 @@ import {
   PlayIcon,
   ReloadIcon,
   TrashIcon,
+  UpdateIcon,
 } from "@radix-ui/react-icons";
 import { useTranscribeStore } from "@/store/createStore";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -57,6 +58,7 @@ interface FileItemProps {
   delete: (id: number) => void;
   style?: CSSProperties;
   updateCallback?: () => void;
+  refresh: () => Promise<void>;
 }
 
 export const FileItemBox = ({
@@ -64,6 +66,7 @@ export const FileItemBox = ({
   item,
   style,
   delete: deleteFileItem,
+  refresh,
 }: FileItemProps) => {
   const { transcribeFileIds, openFile, addTranscribeFile, delTranscribeFile } =
     useTranscribeStore(
@@ -77,11 +80,14 @@ export const FileItemBox = ({
 
   const [currentFileTranscribing, setCurrentFileTranscribing] = useState(false);
   const [abort, setAbort] = useState<Child>();
-  const [currentModel, setCurrentModel] = useState(item.model);
   const location = useLocation();
   const navigate = useNavigate();
   // read models from resources path
   const [models] = useConfig("model_path", []);
+  const [defaultModelPath] = useConfig("default_model_path", "");
+  const [currentModel, setCurrentModel] = useState(
+    item.model === "" ? defaultModelPath : item.model
+  );
 
   const transcribe = async (file_name: string) => {
     const localItem = await findByFilename(file_name);
@@ -90,6 +96,7 @@ export const FileItemBox = ({
 
       const { transcription, child } = await loadTranscription(
         file.file_path,
+        file.duration,
         currentModel,
         () => {
           delTranscribeFile(file.id ?? 0);
@@ -99,18 +106,23 @@ export const FileItemBox = ({
 
       const scripts = await transcription;
 
-      await updateByFilename(scripts.join("\n"), 0, file_name, currentModel);
-      
+      await updateByFilename(
+        scripts.join("\n"),
+        (localItem as FileItem[])[0].duration,
+        file_name,
+        currentModel
+      );
+
       // 删除 transcribing 状态
       delTranscribeFile(file.id ?? 0);
-      // if (abort) setAbort(undefined);
+      setAbort(undefined);
+      refresh();
     }
   };
 
   useEffect(() => {
     setCurrentFileTranscribing(transcribeFileIds.includes(item?.id ?? 0));
   }, [transcribeFileIds]);
-
   return (
     <div
       style={style}
@@ -118,7 +130,8 @@ export const FileItemBox = ({
         className,
         " px-2  mb-1 rounded-md border-[1px] border-solid border-slate-100 hover:bg-slate-200 flex items-center justify-between cursor-default "
       )}
-      onClick={() => {
+      onClick={async () => {
+        await refresh();
         openFile(item);
         if (location.pathname !== "/content") {
           navigate(`/content`);
@@ -156,11 +169,11 @@ export const FileItemBox = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="max-w-[120px] overflow-hidden overflow-ellipsis whitespace-nowrap">
-                    {item.model}
+                    {item.model.split("/").slice(-1)}
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className="">
-                  <p>{item.model}</p>
+                  <p>{item.model.split("/").slice(-1)}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -183,17 +196,16 @@ export const FileItemBox = ({
         <Popover>
           <PopoverTrigger>
             <div className="h-8  w-10 rounded-md bg-green-400 flex items-center justify-center">
-              <PlayIcon />
+              <UpdateIcon />
             </div>
           </PopoverTrigger>
           <PopoverContent side={"top"} className="w-15">
             <div className="flex gap-2 w-full justify-center items-center">
               <Select
-                value={currentModel}
                 onValueChange={(value) => {
                   setCurrentModel(value);
                 }}
-                defaultValue={currentModel}
+                defaultValue={defaultModelPath}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Model" />

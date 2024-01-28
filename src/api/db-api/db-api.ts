@@ -8,14 +8,14 @@ const wrapper = async (fn: (db: Database) => Promise<unknown>) => {
 }
 
 export const initDatabase = async () => {
-    wrapper(async (db) => {        
+    return wrapper(async (db) => {        
         await db.execute(
             "CREATE TABLE IF NOT EXISTS transcribed_files(id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL,file_name TEXT NOT NULL,file_type TEXT NOT NULL,origin_file_path TEXT NOT NULL,file_path TEXT NOT NULL, duration INTEGER NOT NULL,model TEXT NOT NULL, create_timestamp TIMESTAMP INTEGER NOT NULL ,update_timestamp INTEGER NOT NULL,status INTEGER DEFAULT 1)"
         );
     });
 }
 export const dropDatabase = async () => {
-    wrapper(async (db) => {
+    return wrapper(async (db) => {
         await db.execute(
             "DROP TABLE IF EXISTS transcribed_files;"
         );
