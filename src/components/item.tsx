@@ -1,6 +1,8 @@
 import { secondsToTimecode } from "@/utils/timecode";
 import { Button } from "./ui/button";
 import {
+  ArrowDownIcon,
+  BoxIcon,
   CheckCircledIcon,
   CrossCircledIcon,
   PlayIcon,
@@ -21,9 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { useShallow } from "zustand/react/shallow";
 import { CSSProperties, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { findByFilename, updateByFilename } from "@/api/db-api/db-api";
 import { loadTranscription } from "@/utils/whisper";
-import { getDuration } from "@/utils/ffmpeg";
 import { Child } from "@tauri-apps/api/shell";
 import {
   Popover,
@@ -37,8 +37,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cx } from "class-variance-authority";
 import { useConfig } from "@/hooks/useConfig";
+
+import { create16bitWav, getDuration } from "@/utils/ffmpeg";
+import { listen } from "@tauri-apps/api/event";
+import { MediaFile } from "@/utils/mediaFile";
+import { css, cx } from "@emotion/css";
+import {
+  deleteByID,
+  findByFileID,
+  findByFilePath,
+  getDataByPage,
+  getTotal,
+  initDatabase,
+  searchByKeyword,
+  updateByFilename,
+} from "@/api/db-api/db-api";
+
+// infinite scroll
+import AutoSizer from "react-virtualized-auto-sizer";
+import InfiniteLoader from "react-window-infinite-loader";
+import { FixedSizeList as List, ListChildComponentProps } from "react-window";
+import { addToTranscribed } from "@/services/filerecordservice";
+
 export interface FileItem {
   id?: number;
   text: string;
@@ -57,8 +78,7 @@ interface FileItemProps {
   className?: string;
   delete: (id: number) => void;
   style?: CSSProperties;
-  updateCallback?: () => void;
-  refresh: () => Promise<void>;
+  updateCallback?: (id: number) => Promise<void>;
 }
 
 export const FileItemBox = ({
@@ -66,18 +86,23 @@ export const FileItemBox = ({
   item,
   style,
   delete: deleteFileItem,
-  refresh,
+  updateCallback,
 }: FileItemProps) => {
-  const { transcribeFileIds,getOpenFile, openFile, addTranscribeFile, delTranscribeFile } =
-    useTranscribeStore(
-      useShallow((state) => ({
-        transcribeFileIds: state.transcribe.transcribe_file_ids,
-        openFile: state.openFile,
-        getOpenFile: state.open_file,
-        addTranscribeFile: state.addTranscribeFile,
-        delTranscribeFile: state.delTranscribeFile,
-      }))
-    );
+  const {
+    transcribeFileIds,
+    getOpenFile,
+    openFile,
+    addTranscribeFile,
+    delTranscribeFile,
+  } = useTranscribeStore(
+    useShallow((state) => ({
+      transcribeFileIds: state.transcribe.transcribe_file_ids,
+      openFile: state.openFile,
+      getOpenFile: state.open_file,
+      addTranscribeFile: state.addTranscribeFile,
+      delTranscribeFile: state.delTranscribeFile,
+    }))
+  );
 
   const [currentFileTranscribing, setCurrentFileTranscribing] = useState(false);
   const [abort, setAbort] = useState<Child>();
@@ -85,20 +110,26 @@ export const FileItemBox = ({
   const navigate = useNavigate();
   // read models from resources path
   const [models] = useConfig("model_path", []);
-  const [defaultModelPath] = useConfig("default_model_path", "");
-  const [currentModel, setCurrentModel] = useState(
-    item.model === "" ? defaultModelPath : item.model
-  );
+  const [builtInModelPath] = useConfig("built_in_model_path", "empty");
+  const [currentModel, setCurrentModel] = useState<string>();
 
-  const transcribe = async (file_name: string) => {
-    const localItem = await findByFilename(file_name);
+  // 声明一个名为 "refreshCount" 的状态变量
+  const [_refreshCount, setRefreshCount] = useState(0);
+
+  // 定义一个函数来强制刷新组件
+  function refresh() {
+    setRefreshCount((oldCount) => oldCount + 1);
+  }
+
+  const transcribe = async (origin_file_path: string) => {
+    const localItem = await findByFilePath(origin_file_path);
     if (localItem && (localItem as any).length > 0) {
       const file = (localItem as FileItem[])[0];
 
       const { transcription, child } = await loadTranscription(
         file.file_path,
         file.duration,
-        currentModel,
+        currentModel ?? builtInModelPath,
         () => {
           delTranscribeFile(file.id ?? 0);
         }
@@ -110,17 +141,19 @@ export const FileItemBox = ({
       await updateByFilename(
         scripts.join("\n"),
         (localItem as FileItem[])[0].duration,
-        file_name,
-        currentModel
+        file.file_name,
+        currentModel ?? builtInModelPath
       );
-
+      await updateCallback?.(file.id ?? 0);
+      refresh();
       // 删除 transcribing 状态
       delTranscribeFile(file.id ?? 0);
       setAbort(undefined);
-      refresh();
     }
   };
-
+  useEffect(() => {
+    setCurrentModel(item.model);
+  }, []);
   useEffect(() => {
     setCurrentFileTranscribing(transcribeFileIds.includes(item?.id ?? 0));
   }, [transcribeFileIds]);
@@ -133,7 +166,6 @@ export const FileItemBox = ({
         " px-2  mb-1 rounded-md border-[1px] border-solid border-slate-100 hover:bg-slate-200 flex items-center justify-between cursor-default "
       )}
       onClick={async () => {
-        await refresh();
         openFile(item);
         if (location.pathname !== "/content") {
           navigate(`/content`);
@@ -207,7 +239,7 @@ export const FileItemBox = ({
                 onValueChange={(value) => {
                   setCurrentModel(value);
                 }}
-                defaultValue={defaultModelPath}
+                defaultValue={currentModel}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Model" />
@@ -256,7 +288,7 @@ export const FileItemBox = ({
                   toast.info("Transcribing " + item.file_name);
 
                   // retranscribe
-                  transcribe(item.file_name);
+                  transcribe(item.origin_file_path);
                   setCurrentFileTranscribing(false);
                 }}
               >
@@ -282,6 +314,250 @@ export const FileItemBox = ({
         >
           <TrashIcon />
         </Button>
+      </div>
+    </div>
+  );
+};
+
+export interface FileItemListProps {
+  searchKeyWord: string;
+}
+
+export const FileItemList = ({ searchKeyWord }: FileItemListProps) => {
+  const { transcribingIDS } = useTranscribeStore((state) => ({
+    transcribingIDS: state.transcribe.transcribe_file_ids,
+  }));
+
+  const [total, setTotal] = useState(0);
+  const [page] = useState(1);
+  const [items, setItems] = useState<FileItem[]>([]);
+
+  const [dragging, setDragging] = useState(false);
+  const { openedFile, openFile } = useTranscribeStore((state) => ({
+    openedFile: state.open_file,
+    openFile: state.openFile,
+  }));
+  const [builtInModelPath] = useConfig("built_in_model_path", "empty");
+
+  useEffect(() => {
+    const search = async () => {
+      const result = await searchByKeyword(searchKeyWord, page);
+      setItems(result as FileItem[]);
+    };
+    searchKeyWord && search();
+  });
+
+  const init = async () => {
+    await initDatabase();
+    const total = await getTotal();
+    if ((total as any)[0] && (total as any)[0]["COUNT(*)"]) {
+      setTotal((total as any)[0]["COUNT(*)"]);
+    }
+  };
+
+  const getData = async () => {
+    const result = await getDataByPage(page);
+
+    setItems(result as FileItem[]);
+  };
+
+  const updateTranscribed = async (id: number) => {
+    // TODO: 替换 list 中的值 而不是整个列表渲染
+    const updatedItem = ((await findByFileID(id)) as FileItem[])[0];
+    console.log("updated item ", updatedItem);
+
+    items[items.findIndex((item) => item.id === updatedItem.id)] = updatedItem;
+    setItems(items);
+  };
+
+  const deleteTranscribed = async (id: number) => {
+    await deleteByID(id);
+    if (openedFile.id === id) {
+      openFile({
+        text: "",
+        file_name: "",
+        file_path: "",
+        file_type: "",
+        origin_file_path: "",
+        duration: 0,
+        model: "",
+      });
+    }
+    toast.success("Delete Success.");
+    getData();
+  };
+
+  const Row = ({ data, index, style }: ListChildComponentProps) => {
+    return (
+      <div className="" style={style}>
+        <FileItemBox
+          item={data[index]}
+          delete={deleteTranscribed}
+          updateCallback={updateTranscribed}
+        />
+      </div>
+    );
+  };
+  useEffect(() => {
+    init();
+    getData();
+
+    const unlistenHover = listen("tauri://file-drop-hover", () => {
+      setDragging(true);
+    });
+
+    const unlistenCancelled = listen("tauri://file-drop-cancelled", () => {
+      setDragging(false);
+    });
+
+    const unlistenDrop = listen("tauri://file-drop", (event) => {
+      setDragging(false);
+      if (event.payload === undefined || (event.payload as any).length === 0)
+        return;
+
+      for (let i = 0; i < (event.payload as any).length; i++) {
+        if (
+          [
+            "wav",
+            "mp3",
+            "aif",
+            "mp4",
+            "aac",
+            "mov",
+            "wmv",
+            "avi",
+            "webm",
+          ].includes(
+            ((event.payload as any)[i] as string).split(".").slice(-1)[0]
+          )
+        ) {
+          MediaFile.create((event.payload as any)[i], "").then((file) => {
+            addRecord(file);
+          });
+          // toast.success("Add file successfully, now you can process it.");
+        } else {
+          toast.error("File format not supported");
+        }
+      }
+    });
+    return () => {
+      unlistenHover.then((fn) => {
+        fn();
+      });
+      unlistenCancelled.then((fn) => {
+        fn();
+      });
+      unlistenDrop.then((fn) => {
+        fn();
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    getData();
+  }, [total, page, transcribingIDS]);
+
+  async function addRecord(file: MediaFile) {
+    const exists = await findByFilePath(file.originalPath);
+
+    if ((exists as any).length > 0) {
+      toast.warning("File already exists: " + file.fileName);
+      return;
+    }
+    const item: FileItem = {
+      text: "",
+      file_name: file.fileName,
+      file_type: file.extension,
+      origin_file_path: file.originalPath,
+      file_path: file.transformedPath,
+      duration: await getDuration(file.path),
+      model: builtInModelPath ? builtInModelPath : "",
+    };
+    await addToTranscribed(
+      "",
+      item.file_name,
+      item.file_type,
+      item.origin_file_path,
+      item.file_path,
+      item.duration,
+      item.model
+    );
+    getData();
+    await create16bitWav(file);
+  }
+
+  const isItemLoaded = (index: number) => {
+    return !!items[index];
+  };
+
+  const loadMoreItems = (_startIndex: number, _stopIndex: number) => {
+    getDataByPage(page + 1).then((data) => {
+      setItems([...items, ...(data as FileItem[])]);
+    });
+  };
+
+  return (
+    <div
+      className={cx(
+        "relative overflow-scroll-y no-scrollbar rounded-md flex flex-col justify-between border-solid border-[1px] msx-2",
+        dragging ? "pointer-events-none" : "pointer-events-auto",
+        css`
+          grid-area: side-main;
+        `
+      )}
+    >
+      {dragging && (
+        <div
+          className={cx(
+            "z-10 pointer-events-none absolute top-0 bottom-0 left-0 right-0",
+            "  flex justify-center items-center flex-col",
+            " bg-opacity-70  backdrop-blur-lg",
+            dragging ? "visible" : "invisible"
+          )}
+        >
+          <ArrowDownIcon className="h-16 w-10  animate-bounce" />
+          <BoxIcon className="relative h-10 w-10 -top-10" />
+          drop file to process
+        </div>
+      )}
+      <div className="h-full">
+        {items.length > 0 ? (
+          <AutoSizer>
+            {({ height, width }) => (
+              <InfiniteLoader
+                isItemLoaded={isItemLoaded}
+                itemCount={total}
+                loadMoreItems={loadMoreItems}
+              >
+                {({ onItemsRendered, ref }) => (
+                  <List
+                    className="List no-scrollbar"
+                    height={height}
+                    itemCount={items.length}
+                    itemSize={70}
+                    itemData={items}
+                    width={width}
+                    onItemsRendered={onItemsRendered}
+                    ref={ref}
+                  >
+                    {Row}
+                  </List>
+                )}
+              </InfiniteLoader>
+            )}
+          </AutoSizer>
+        ) : (
+          <div className=" grid place-items-center">
+            {searchKeyWord !== "" ? (
+              <span className="font-mono">No such Record </span>
+            ) : (
+              <span>
+                drag audio file here or click the add button to transcribe audio
+                file to text
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -318,7 +594,7 @@ export const TextItem = ({ text, style }: TextItemProps) => {
           {time}
         </Button>
       </div>
-      <div className=" flex text-lg flex-wrap ">{audioText}</div>
+      <div className=" flex text-lg flex-wrap">{audioText}</div>
     </div>
   );
 };

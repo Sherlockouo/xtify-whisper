@@ -48,7 +48,7 @@ export const searchByKeyword = async (searchKeyWord: string, page: number) => {
 
 export const updateByFilename = async (text: string, duration: number, file_name: string, model: string) => {
     return wrapper(async (db) => {
-        const res = await db.execute(
+        return await db.execute(
             "UPDATE transcribed_files SET text=$1, duration=$2,model=$3,update_timestamp=$4 WHERE file_name=$5",
             [text, duration, model, Date.now(),file_name,]
         );
@@ -66,6 +66,22 @@ export const findByFilename = async (filename: string) => {
         return await db.select(
             "select * FROM transcribed_files WHERE status = 1 AND file_name = $1",
             [filename])
+    })
+}
+
+export const findByFileID = async (id: number) => {
+    return wrapper(async (db) => {
+        return await db.select(
+            "select * FROM transcribed_files WHERE status = 1 AND id = $1",
+            [id])
+    })
+}
+
+export const findByFilePath = async (originFilePath: string) => {
+    return wrapper(async (db) => {
+        return await db.select(
+            "select * FROM transcribed_files WHERE status = 1 AND origin_file_path = $1",
+            [originFilePath])
     })
 }
 

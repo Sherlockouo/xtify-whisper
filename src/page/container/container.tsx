@@ -28,10 +28,10 @@ const Containter = React.memo(() => {
         {useOpenFile.file_name && useOpenFile.file_name}
       </h1>
       {useOpenFile.file_path !== "" ? (
-        <div className="h-full w-full px-2">
+        <div className="h-full w-full px-2 ">
           {useOpenFile.text !== "" ? (
             <div className="h-full w-full">
-              <AutoSizer className="">
+              <AutoSizer className="selectable">
                 {({ height, width }) => (
                   <List
                     className="List no-scrollbar"

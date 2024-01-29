@@ -1,16 +1,13 @@
 import { cx } from "@emotion/css";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
 import { useConfig } from "@/hooks/useConfig";
 import { Button } from "@/components/ui/button";
-import { db } from "@/utils/db";
 import { openFileWithFilter } from "@/utils/fs";
 import {
   Cross1Icon,
   FilePlusIcon,
   InfoCircledIcon,
-  PlusIcon,
   TargetIcon,
 } from "@radix-ui/react-icons";
 import { motion } from "framer-motion";

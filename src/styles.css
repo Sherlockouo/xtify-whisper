@@ -17,3 +17,6 @@ html::-webkit-scrollbar {
     -webkit-user-select: none;
     cursor:default;
 }
+.selectable * {
+    user-select: initial !important;
+}

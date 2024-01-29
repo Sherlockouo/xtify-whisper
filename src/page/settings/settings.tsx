@@ -5,9 +5,9 @@ import { CrossCircledIcon } from "@radix-ui/react-icons";
 import { useNavigate } from "react-router-dom";
 import { FileItem } from "@/components/item";
 import Models from "./models";
-import { resourceDir } from "@tauri-apps/api/path";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator"
 
 const Settings = () => {
   const { openFile } = useTranscribeStore((state) => ({
@@ -26,7 +26,7 @@ const Settings = () => {
   return (
     <div className="w-full h-full px-2">
       <div className="w-full flex justify-between p-2">
-        Settings page
+        Settings
         <CrossCircledIcon
           onClick={() => {
             navigate(`/`);
@@ -53,7 +53,9 @@ const Settings = () => {
         >
           Clear DB
         </Button>
-        TODO: 1. 滚动动画
+      </div>
+      <div>
+      <Separator className="my-1" />
       </div>
       <div className="">
         <Models />

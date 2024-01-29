@@ -17,7 +17,6 @@ export default function App() {
     "built_in_model_path",
     "empty"
   );
-  const [modelPath, setModelPath] = useConfig("model_path", []);
   useEffect(() => {
     changeTheme(theme);
   }, [theme]);
