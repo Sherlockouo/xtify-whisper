@@ -1,10 +1,8 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { openFileWithFilter } from "@/utils/fs";
-import { FileItem, FileItemBox, FileItemList } from "../item";
+import { FileItemList } from "../item";
 import {
-  ArrowDownIcon,
-  BoxIcon,
   CrossCircledIcon,
   GearIcon,
   InfoCircledIcon,
