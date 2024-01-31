@@ -8,7 +8,7 @@ export async function create16bitWav(file: MediaFile): Promise<void> {
 	const ffmpeg = Command.sidecar('binaries/ffmpeg', [
 		'-y',
 		'-i',
-		file.path,
+		file.originalPath,
 		'-ar',
 		'16000',
 		'-ac',

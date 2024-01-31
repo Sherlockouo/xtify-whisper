@@ -17,7 +17,8 @@ export interface State {
     playing_file:{
         playing:boolean;
         currentTime:number;
-    }
+    },
+    db_reset:number
 
 }
 
@@ -41,5 +42,6 @@ export const initialState: State = {
     playing_file:{
         playing: false,
         currentTime: 0
-    }
+    },
+    db_reset:0
 };

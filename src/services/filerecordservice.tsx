@@ -16,7 +16,7 @@ export const addToTranscribed = async (
   const exists = await findByFilePath(origin_file_path);
   if ((exists as any).length > 0) {
     toast.warning("File already exists: " + fileName);
-    await updateByFilename(text, duration, (exists as any).id, model);
+    await updateByFilename(text, duration, (exists as any).id, model,(exists as any).transcribe_times);
     return;
   }
   const res = await addTranscribeFile(
@@ -55,7 +55,7 @@ export const addRecord = async (file: MediaFile,builtInModelPath?:string) =>{
       file_type: file.extension,
       origin_file_path: file.originalPath,
       file_path: file.transformedPath,
-      duration: await getDuration(file.path),
+      duration: await getDuration(file.originalPath),
       model: builtInModelPath ? builtInModelPath : "",
     };
     await addToTranscribed(

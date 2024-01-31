@@ -5,13 +5,14 @@ import { CrossCircledIcon } from "@radix-ui/react-icons";
 import { useNavigate } from "react-router-dom";
 import { FileItem } from "@/components/item";
 import Models from "./models";
-import { useEffect } from "react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator"
 
+
 const Settings = () => {
-  const { openFile } = useTranscribeStore((state) => ({
+  const { openFile,resetDB } = useTranscribeStore((state) => ({
     openFile: state.openFile,
+    resetDB: state.resetDB,
   }));
   const navigate = useNavigate();
   const clearDB = async () => {
@@ -20,9 +21,6 @@ const Settings = () => {
     
   };
 
-  useEffect(()=>{
-    
-  },[])
   return (
     <div className="w-full h-full px-2">
       <div className="w-full flex justify-between p-2">
@@ -34,9 +32,13 @@ const Settings = () => {
         />
       </div>
      
-      <div>
+      <div className="relative group">
+        <div className="absolute top-9 text-lg font-bold invisible italic group-hover:visible">Warning: This will clear the file list,and is not recoverable</div>
         <Button
+        className=""
+        variant={"destructive"}
           onClick={async() => {
+            
             await clearDB();
             const item: FileItem = {
               text: "",
@@ -49,9 +51,10 @@ const Settings = () => {
             };
             openFile(item);
             toast.success("Cleared DB.")
+            resetDB()
           }}
         >
-          Clear DB
+          Clear File List
         </Button>
       </div>
       <div>

@@ -59,6 +59,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import InfiniteLoader from "react-window-infinite-loader";
 import { FixedSizeList as List, ListChildComponentProps } from "react-window";
 import { addToTranscribed } from "@/services/filerecordservice";
+import { audio } from "@/utils/fs";
 
 export interface FileItem {
   id?: number;
@@ -71,6 +72,7 @@ export interface FileItem {
   model: string;
   create_time?: number;
   update_time?: number;
+  transcribe_times?: number;
 }
 
 interface FileItemProps {
@@ -113,14 +115,6 @@ export const FileItemBox = ({
   const [builtInModelPath] = useConfig("built_in_model_path", "empty");
   const [currentModel, setCurrentModel] = useState<string>();
 
-  // 声明一个名为 "refreshCount" 的状态变量
-  const [_refreshCount, setRefreshCount] = useState(0);
-
-  // 定义一个函数来强制刷新组件
-  function refresh() {
-    setRefreshCount((oldCount) => oldCount + 1);
-  }
-
   const transcribe = async (origin_file_path: string) => {
     const localItem = await findByFilePath(origin_file_path);
     if (localItem && (localItem as any).length > 0) {
@@ -142,21 +136,24 @@ export const FileItemBox = ({
         scripts.join("\n"),
         (localItem as FileItem[])[0].duration,
         file.file_name,
-        currentModel ?? builtInModelPath
+        currentModel ?? builtInModelPath,
+        file.transcribe_times ?? 1,
       );
       await updateCallback?.(file.id ?? 0);
-      refresh();
       // 删除 transcribing 状态
       delTranscribeFile(file.id ?? 0);
       setAbort(undefined);
     }
   };
+
   useEffect(() => {
     setCurrentModel(item.model);
   }, []);
+
   useEffect(() => {
     setCurrentFileTranscribing(transcribeFileIds.includes(item?.id ?? 0));
   }, [transcribeFileIds]);
+
   return (
     <div
       style={style}
@@ -176,7 +173,7 @@ export const FileItemBox = ({
         <div className="px-1">
           {currentFileTranscribing ? (
             <ReloadIcon className="animate-spin" />
-          ) : item.text === "" ? (
+          ) : !item.transcribe_times || item.transcribe_times < 1 ? (
             <CrossCircledIcon />
           ) : (
             <CheckCircledIcon color="green" />
@@ -333,9 +330,10 @@ export const FileItemList = ({ searchKeyWord }: FileItemListProps) => {
   const [items, setItems] = useState<FileItem[]>([]);
 
   const [dragging, setDragging] = useState(false);
-  const { openedFile, openFile } = useTranscribeStore((state) => ({
+  const { openedFile, openFile, dbRst } = useTranscribeStore((state) => ({
     openedFile: state.open_file,
     openFile: state.openFile,
+    dbRst: state.db_reset,
   }));
   const [builtInModelPath] = useConfig("built_in_model_path", "empty");
 
@@ -417,17 +415,7 @@ export const FileItemList = ({ searchKeyWord }: FileItemListProps) => {
 
       for (let i = 0; i < (event.payload as any).length; i++) {
         if (
-          [
-            "wav",
-            "mp3",
-            "aif",
-            "mp4",
-            "aac",
-            "mov",
-            "wmv",
-            "avi",
-            "webm",
-          ].includes(
+         audio.extensions.includes(
             ((event.payload as any)[i] as string).split(".").slice(-1)[0]
           )
         ) {
@@ -455,10 +443,13 @@ export const FileItemList = ({ searchKeyWord }: FileItemListProps) => {
 
   useEffect(() => {
     getData();
-  }, [total, page, transcribingIDS]);
+    console.log(' db rst ',dbRst);
+    
+  }, [total, page, transcribingIDS, dbRst]);
 
   async function addRecord(file: MediaFile) {
     const exists = await findByFilePath(file.originalPath);
+    console.log(' file ', file, ' ', file.path);
 
     if ((exists as any).length > 0) {
       toast.warning("File already exists: " + file.fileName);
@@ -470,7 +461,7 @@ export const FileItemList = ({ searchKeyWord }: FileItemListProps) => {
       file_type: file.extension,
       origin_file_path: file.originalPath,
       file_path: file.transformedPath,
-      duration: await getDuration(file.path),
+      duration: await getDuration(file.originalPath),
       model: builtInModelPath ? builtInModelPath : "",
     };
     await addToTranscribed(

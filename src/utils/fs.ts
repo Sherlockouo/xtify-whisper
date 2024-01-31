@@ -28,9 +28,9 @@ export async function getRecordingsDir() {
 	return (await appCacheDir()) + RECORDINGS_DIR + '/';
 }
 
-const audio = {
+export const audio = {
 	name: 'Media',
-	extensions: ['wav', 'mp3', 'aif', 'mp4', 'aac', 'mov', 'wmv', 'avi', 'webm']
+	extensions: ['wav', 'mp3', 'aif', 'mp4', 'aac', 'mov', 'wmv', 'avi', 'webm','mp4']
 };
 
 const model = {

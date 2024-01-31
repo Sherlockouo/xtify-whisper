@@ -47,13 +47,15 @@ export async function loadTranscription(file_path: string, duration: number, mod
         console.log('Fallback to default model' + modelPath);
     }
 
+    
     const transcribe = Command.sidecar('binaries/whisper', [
         '-m',
         modelPath,
         '-f',
         file_path
     ]);
-
+    
+    console.log(' transcribe path ', file_path,' ',transcribe);
     const output: string[] = [];
     const child = await transcribe.spawn();
     
@@ -62,6 +64,7 @@ export async function loadTranscription(file_path: string, duration: number, mod
             console.error(error.message);
         });
         transcribe.stdout.on('data', (line) => {
+            console.log('line ',line);
             // Filter any empty lines
             if (line) {
                 output.push(line);
@@ -74,6 +77,8 @@ export async function loadTranscription(file_path: string, duration: number, mod
             reject();
         });
         transcribe.on('close', () => {
+            console.log('output ',output);
+            
             callback && callback()
             toast.success("Process 100%")
             resolve(output)

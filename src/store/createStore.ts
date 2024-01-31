@@ -8,6 +8,7 @@ interface Action {
   addTranscribeFile: (file_id: number) => void
   delTranscribeFile: (file_id: number) => void
   updatePlaying: (playing: Partial<playing_file>) => void
+  resetDB:()=>void
 }
 export type Store = State & Action;
 
@@ -65,5 +66,10 @@ export const useTranscribeStore = create<Store>((set, get) => ({
       }
     }))
   },
+  resetDB:()=>{
+    set({
+      db_reset: get().db_reset + 1
+    })
+  }
 }))
 

@@ -8,7 +8,7 @@ import { useConfig } from "./hooks/useConfig";
 import { changeTheme } from "./utils/theme";
 import { BrowserRouter } from "react-router-dom";
 import { ensureRecordingDir, ensureWaveDir } from "./utils/fs";
-import { init } from "@/utils/env";
+import { init, osType } from "@/utils/env";
 import { resolveResource } from "@tauri-apps/api/path";
 
 export default function App() {
@@ -24,17 +24,23 @@ export default function App() {
     await Promise.all([ensureRecordingDir(), ensureWaveDir()]);
   };
   useEffect(() => {
-    initDir();
-    init();
-    const initDatabase = async()=>{
+
+    const initDatabase = async () => {
       await db.load();
     }
     initDatabase();
     const initModel = async () => {
-      const builtInmodel = await resolveResource(
+      await initDir();
+      await init();
+      let builtInmodel = await resolveResource(
         "resources/models/ggml-base.en.bin"
       );
+
       if (builtInModelPath === null || builtInModelPath === "") {
+        if (osType === "win32") {
+          builtInmodel = builtInmodel.replace('\\\\?\\', '')
+        }
+        console.log('built in model ', builtInmodel);
         setBuiltInModelPath(builtInmodel);
       }
     };
